@@ -2,9 +2,11 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
-# Cargar las variables de entorno desde el archivo .env
-load_dotenv()
+# Cargar el archivo .env desde la ruta específica
+env_path = Path('.') / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Intents necesarios para el bot
 intents = discord.Intents.default()
@@ -16,7 +18,8 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 
 # Verificar que DISCORD_GUILD_ID esté cargado
 GUILD_ID = os.getenv("DISCORD_GUILD_ID")
-print(f"DISCORD_GUILD_ID cargado: {GUILD_ID}")  # Para depuración
+print(f"DISCORD_GUILD_ID: {GUILD_ID}")  # Depuración
+print(f"DISCORD_TOKEN: {os.getenv('DISCORD_TOKEN')}")  # Depuración
 
 @bot.event
 async def on_ready():
