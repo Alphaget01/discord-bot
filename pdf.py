@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
@@ -31,6 +32,8 @@ async def on_ready():
             guild = discord.Object(id=int(GUILD_ID))  # Asegurarse de que el ID esté definido
             synced = await bot.tree.sync(guild=guild)  # Sincronizar solo para este servidor
             print(f"Comandos slash sincronizados correctamente para la guild {GUILD_ID}: {len(synced)} comandos.")
+            for command in synced:
+                print(f"Comando sincronizado: {command.name}")
         else:
             print("Error: DISCORD_GUILD_ID no está definido correctamente.")
     except Exception as e:
