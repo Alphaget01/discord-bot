@@ -6,6 +6,8 @@ import os
 load_dotenv()
 
 intents = discord.Intents.default()
+intents.message_content = True  # Asegúrate de habilitar el contenido de los mensajes si es necesario.
+
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 @bot.event
