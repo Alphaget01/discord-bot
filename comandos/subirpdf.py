@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ext import commands
 import os
 import subprocess
-from typing import List  # Importar tipos para listas
 
 class SubirPDF(commands.Cog):
     def __init__(self, bot):
@@ -11,9 +10,17 @@ class SubirPDF(commands.Cog):
 
     @app_commands.command(name="subirpdf", description="Sube un PDF a Google Drive a partir de imágenes y hace un anuncio en Discord")
     @app_commands.checks.has_role(int(os.getenv("ROL_AUTORIZADO")))
-    async def subir_pdf(self, interaction: discord.Interaction, images: List[str], serie: str, chapter: int):
+    async def subir_pdf(self, interaction: discord.Interaction, images: discord.Attachment, serie: str, chapter: int):
+        # Descargar la imagen adjunta
+        await interaction.response.send_message("Descargando imagen JPG...", ephemeral=True)
+        image_path = f"./temp/{images.filename}"  # Ruta temporal para guardar la imagen
+
+        # Descargar la imagen
+        await images.save(image_path)
+        await interaction.followup.send(f"Imagen {images.filename} guardada.")
+
         # Paso 1: Convertir imágenes a PDF usando el script en JavaScript
-        await interaction.response.send_message("Convirtiendo imágenes a PDF...", ephemeral=True)
+        await interaction.followup.send("Convirtiendo imágenes a PDF...")
 
         try:
             subprocess.run(['node', './utils_js/convertir_las_imágenes_a_pdf.js'], check=True)
