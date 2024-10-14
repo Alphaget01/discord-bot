@@ -14,8 +14,9 @@ intents.guilds = True  # Habilitar eventos relacionados con servidores
 # Configuración del bot
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# ID del servidor (guild) donde sincronizar los comandos slash
+# Verificar que DISCORD_GUILD_ID esté cargado
 GUILD_ID = os.getenv("DISCORD_GUILD_ID")
+print(f"DISCORD_GUILD_ID cargado: {GUILD_ID}")  # Para depuración
 
 @bot.event
 async def on_ready():
@@ -23,9 +24,12 @@ async def on_ready():
 
     # Sincronización de comandos slash en un servidor específico
     try:
-        guild = discord.Object(id=int(GUILD_ID))  # Asegúrate de que sea un entero
-        synced = await bot.tree.sync(guild=guild)  # Sincroniza solo para este servidor
-        print(f"Comandos slash sincronizados correctamente para la guild {GUILD_ID}: {len(synced)} comandos.")
+        if GUILD_ID:
+            guild = discord.Object(id=int(GUILD_ID))  # Asegurarse de que el ID esté definido
+            synced = await bot.tree.sync(guild=guild)  # Sincronizar solo para este servidor
+            print(f"Comandos slash sincronizados correctamente para la guild {GUILD_ID}: {len(synced)} comandos.")
+        else:
+            print("Error: DISCORD_GUILD_ID no está definido correctamente.")
     except Exception as e:
         print(f"Error al sincronizar comandos slash: {e}")
 
