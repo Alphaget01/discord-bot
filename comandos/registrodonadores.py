@@ -14,13 +14,15 @@ class RegistroDonadores(commands.Cog):
     async def registro_donadores(self, interaction: discord.Interaction, serie: str, id_dragon: str, id_fenix: str):
         donadores_ref = self.db.collection(os.getenv("FIRESTORE_COLLECTION"))
 
-        donadores_ref.add({
-            "serie": serie,
-            "id_dragon": id_dragon,
-            "id_fenix": id_fenix
-        })
-
-        await interaction.response.send_message(f'Serie "{serie}" registrada con éxito en la base de datos.', ephemeral=True)
+        try:
+            donadores_ref.add({
+                "serie": serie,
+                "id_dragon": id_dragon,
+                "id_fenix": id_fenix
+            })
+            await interaction.response.send_message(f'Serie "{serie}" registrada con éxito en la base de datos.', ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"Error al registrar la serie: {str(e)}", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(RegistroDonadores(bot))
