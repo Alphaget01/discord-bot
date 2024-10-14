@@ -21,5 +21,5 @@ class RegistroDonadores(commands.Cog):
         
         await ctx.send(f'Serie "{serie}" registrada con éxito en la base de datos.')
 
-def setup(bot):
+async def setup(bot):
     bot.add_cog(RegistroDonadores(bot))
