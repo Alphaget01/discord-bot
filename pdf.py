@@ -20,4 +20,11 @@ async def on_ready():
     await bot.load_extension("comandos.registrodonadores")
     await bot.load_extension("comandos.subirpdf")
 
-bot.run(os.getenv("DISCORD_TOKEN"))
+@bot.event
+async def on_ready():
+    print(f'{bot.user.name} ha iniciado sesión en Discord')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Comandos slash sincronizados correctamente: {synced}")
+    except Exception as e:
+        print(f"Error al sincronizar comandos slash: {e}")
