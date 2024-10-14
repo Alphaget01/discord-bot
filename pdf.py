@@ -12,19 +12,18 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 async def on_ready():
     print(f'{bot.user.name} ha iniciado sesión en Discord')
     try:
-        await bot.tree.sync()  # Sincroniza los slash commands
-        print("Comandos slash sincronizados correctamente.")
-    except Exception as e:
-        print(f"Error al sincronizar los comandos: {e}")
-
-    await bot.load_extension("comandos.registrodonadores")
-    await bot.load_extension("comandos.subirpdf")
-
-@bot.event
-async def on_ready():
-    print(f'{bot.user.name} ha iniciado sesión en Discord')
-    try:
-        synced = await bot.tree.sync()
+        synced = await bot.tree.sync()  # Sincroniza los slash commands
         print(f"Comandos slash sincronizados correctamente: {synced}")
     except Exception as e:
         print(f"Error al sincronizar comandos slash: {e}")
+
+    # Carga las extensiones (comandos)
+    try:
+        await bot.load_extension("comandos.registrodonadores")
+        await bot.load_extension("comandos.subirpdf")
+        print("Comandos cargados correctamente.")
+    except Exception as e:
+        print(f"Error al cargar los comandos: {e}")
+
+# Iniciar el bot con el token del archivo .env
+bot.run(os.getenv("DISCORD_TOKEN"))
