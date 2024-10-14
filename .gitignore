@@ -1,0 +1,3 @@
+# Ignorar las credenciales sensibles
+.env
+data/service_account.json
