@@ -36,6 +36,8 @@ async def on_ready():
                 print(f"Comando sincronizado: {command.name}")
         else:
             print("Error: DISCORD_GUILD_ID no está definido correctamente.")
+    except discord.errors.HTTPException as e:
+        print(f"Error HTTP al sincronizar comandos slash: {e.status} - {e.text}")
     except Exception as e:
         print(f"Error al sincronizar comandos slash: {e}")
 
@@ -44,6 +46,8 @@ async def on_ready():
         await bot.load_extension("comandos.registrodonadores")
         await bot.load_extension("comandos.subirpdf")
         print("Comandos cargados correctamente.")
+    except commands.ExtensionError as e:
+        print(f"Error al cargar las extensiones: {e.name} - {e.original}")
     except Exception as e:
         print(f"Error al cargar los comandos: {e}")
 
