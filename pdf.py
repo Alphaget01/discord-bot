@@ -3,7 +3,18 @@ from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
 import os
+import logging
 from pathlib import Path
+
+# Configuración del registro de logs
+logging.basicConfig(
+    level=logging.INFO,  # Nivel de log: INFO, puedes cambiarlo a DEBUG para más detalles
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Formato del log
+    handlers=[
+        logging.FileHandler("bot_logs.log"),  # Guardar en archivo
+        logging.StreamHandler()  # Mostrar en consola
+    ]
+)
 
 # Cargar el archivo .env desde la ruta específica
 env_path = Path('.') / '.env'
@@ -19,37 +30,50 @@ bot = commands.Bot(command_prefix="/", intents=intents)
 
 # Verificar que DISCORD_GUILD_ID esté cargado
 GUILD_ID = os.getenv("DISCORD_GUILD_ID")
-print(f"DISCORD_GUILD_ID: {GUILD_ID}")  # Depuración
-print(f"DISCORD_TOKEN: {os.getenv('DISCORD_TOKEN')}")  # Depuración
+logging.info(f"DISCORD_GUILD_ID: {GUILD_ID}")  # Log para depuración
+logging.info(f"DISCORD_TOKEN: {os.getenv('DISCORD_TOKEN')}")  # Log para depuración
+
+# Comando de prueba
+@bot.tree.command(name="saludo", description="Un comando de prueba que saluda")
+async def saludo(interaction: discord.Interaction):
+    logging.info("El comando /saludo fue ejecutado.")
+    await interaction.response.send_message("¡Hola, este es un comando de prueba!", ephemeral=True)
 
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} ha iniciado sesión en Discord')
-
-    # Sincronización de comandos slash en un servidor específico
-    try:
-        if GUILD_ID:
-            guild = discord.Object(id=int(GUILD_ID))  # Asegurarse de que el ID esté definido
-            synced = await bot.tree.sync(guild=guild)  # Sincronizar solo para este servidor
-            print(f"Comandos slash sincronizados correctamente para la guild {GUILD_ID}: {len(synced)} comandos.")
-            for command in synced:
-                print(f"Comando sincronizado: {command.name}")
-        else:
-            print("Error: DISCORD_GUILD_ID no está definido correctamente.")
-    except discord.errors.HTTPException as e:
-        print(f"Error HTTP al sincronizar comandos slash: {e.status} - {e.text}")
-    except Exception as e:
-        print(f"Error al sincronizar comandos slash: {e}")
+    logging.info(f'{bot.user.name} ha iniciado sesión en Discord')
 
     # Cargar extensiones (comandos)
     try:
         await bot.load_extension("comandos.registrodonadores")
-        await bot.load_extension("comandos.subirpdf")
-        print("Comandos cargados correctamente.")
+        logging.info("Comando 'registrodonadores' cargado correctamente.")
+    except commands.ExtensionAlreadyLoaded as e:
+        logging.warning(f"La extensión {e.name} ya estaba cargada.")  # Cambiado para manejar ExtensionAlreadyLoaded
     except commands.ExtensionError as e:
-        print(f"Error al cargar las extensiones: {e.name} - {e.original}")
+        logging.error(f"Error al cargar la extensión {e.name}: {str(e)}")
     except Exception as e:
-        print(f"Error al cargar los comandos: {e}")
+        logging.error(f"Error inesperado al cargar comandos: {e}")
+
+    try:
+        await bot.load_extension("comandos.subirpdf")
+        logging.info("Comando 'subirpdf' cargado correctamente.")
+    except commands.ExtensionAlreadyLoaded as e:
+        logging.warning(f"La extensión {e.name} ya estaba cargada.")
+    except commands.ExtensionError as e:
+        logging.error(f"Error al cargar la extensión {e.name}: {str(e)}")
+    except Exception as e:
+        logging.error(f"Error inesperado al cargar comandos: {e}")
+
+    # Sincronización de comandos slash global
+    try:
+        synced = await bot.tree.sync()  # Sincronizar todos los comandos globalmente
+        logging.info(f"Comandos slash globales sincronizados correctamente: {len(synced)} comandos.")
+        for command in synced:
+            logging.info(f"Comando sincronizado: {command.name}")
+    except discord.errors.HTTPException as e:
+        logging.error(f"Error HTTP al sincronizar comandos slash: {e.status} - {e.text}")
+    except Exception as e:
+        logging.error(f"Error al sincronizar comandos slash: {e}")
 
 # Ejecutar el bot con el token de Discord desde el archivo .env
 bot.run(os.getenv("DISCORD_TOKEN"))

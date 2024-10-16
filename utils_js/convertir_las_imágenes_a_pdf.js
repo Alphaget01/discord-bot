@@ -1,63 +1,135 @@
-const { Builder, By, until } = require('selenium-webdriver');
-const path = require('path');
+const unzipper = require('unzipper');
 const fs = require('fs');
+const path = require('path');
+const PDFDocument = require('pdfkit');
+const sizeOf = require('image-size');
+console.log(`Recibido: ZIP = ${process.argv[2]}, Serie = ${process.argv[3]}, Capítulo = ${process.argv[4]}`);
 
-async function convertirImagenesAPdf(images, serie, chapter) {
-    let driver = await new Builder().forBrowser('chrome').build();
 
-    try {
-        // Navegar a la página de conversión de imágenes a PDF
-        await driver.get('https://bigpdf.11zon.com/en/images-to-pdf/');
-
-        // Subir las imágenes
-        let selectImageButton = await driver.findElement(By.css('.btn.big_select_btn'));
-        let inputFileElement = await driver.findElement(By.css('input[type="file"]'));
-
-        // Convertir las rutas de las imágenes a rutas absolutas
-        let imagePaths = images.map(image => path.resolve(image));
-
-        // Simular la subida de imágenes al input de tipo file
-        await inputFileElement.sendKeys(imagePaths.join('\n'));
-
-        // Esperar que las imágenes se hayan subido (puedes ajustar el tiempo de espera según el número de imágenes)
-        await driver.wait(until.elementLocated(By.id('zon-right-btn-text')), 30000);
-
-        // Seleccionar los parámetros de conversión
-        let pageSizeDropdown = await driver.findElement(By.id('select-pageSize'));
-        await pageSizeDropdown.sendKeys('Fit (As image size)');  // Seleccionar "Fit As Image Size"
-
-        let qualityDropdown = await driver.findElement(By.id('select-img-quality'));
-        await qualityDropdown.sendKeys('Same As Image (100%)');  // Seleccionar calidad 100%
-
-        // Convertir las imágenes a PDF
-        let convertButton = await driver.findElement(By.id('zon-right-btn'));
-        await convertButton.click();
-
-        // Esperar a que el botón de descarga esté disponible
-        await driver.wait(until.elementLocated(By.id('zon-download-file')), 60000);  // Puede tardar más dependiendo del tamaño de las imágenes
-
-        // Descargar el PDF
-        let downloadButton = await driver.findElement(By.id('zon-download-file'));
-        let downloadLink = await downloadButton.getAttribute('href');
-
-        // Descargar el archivo PDF desde el link
-        let pdfFileName = `${serie}_${chapter}.pdf`;
-        let downloadPath = path.join(__dirname, pdfFileName);
-
-        let file = fs.createWriteStream(downloadPath);
-        https.get(downloadLink, function (response) {
-            response.pipe(file);
-            file.on('finish', function () {
-                file.close();
-                console.log(`PDF descargado y guardado como ${pdfFileName}`);
-            });
-        });
-
-    } finally {
-        // Cerrar el navegador
-        await driver.quit();
-    }
+// Función para extraer el ZIP a un directorio temporal
+async function extractZip(zipPath, extractTo) {
+    return fs.createReadStream(zipPath)
+        .pipe(unzipper.Extract({ path: extractTo }))
+        .promise();
 }
 
-// Ejemplo de uso (debes pasar un array de rutas de imágenes):
-convertirImagenesAPdf(['ruta/a/imagen1.jpg', 'ruta/a/imagen2.jpg'], 'nombre_serie', 1);
+// Función para obtener todos los archivos de imagen en un directorio
+function getImageFiles(directory) {
+    return fs.readdirSync(directory, { withFileTypes: true })
+        .filter(dirent => dirent.isFile())
+        .filter(file => {
+            const ext = path.extname(file.name).toLowerCase();
+            return ext === '.jpg' || ext === '.jpeg' || ext === '.png';
+        })
+        .map(file => path.join(directory, file.name));
+}
+
+// Función para obtener las subcarpetas dentro de un directorio
+function getDirectories(source) {
+    return fs.readdirSync(source, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => path.join(source, dirent.name));
+}
+
+// Función para convertir imágenes en PDF usando PDFKit
+function imagesToPDF(imagePaths, outputPDFPath) {
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ autoFirstPage: false }); // Desactivar la primera página automática
+        const stream = fs.createWriteStream(outputPDFPath);
+        doc.pipe(stream);
+
+        imagePaths.forEach(imagePath => {
+            const dimensions = sizeOf(imagePath); // Obtener las dimensiones de la imagen
+
+            // Crear una nueva página con las mismas dimensiones que la imagen
+            doc.addPage({ size: [dimensions.width, dimensions.height] });
+
+            // Insertar la imagen en la página sin modificar su tamaño
+            doc.image(imagePath, 0, 0, { width: dimensions.width, height: dimensions.height });
+        });
+
+        doc.end();
+
+        stream.on('finish', () => {
+            resolve(outputPDFPath);
+        });
+
+        stream.on('error', reject);
+    });
+}
+
+// Función para procesar un solo archivo ZIP y generar los PDFs
+async function processSingleZip(zipFilePath, outputDir, serie, chapter) {
+    const tempDir = './temp_extracted_' + path.basename(zipFilePath, '.zip'); // Carpeta temporal para cada ZIP
+    await extractZip(zipFilePath, tempDir);
+
+    const directories = getDirectories(tempDir); // Obtener todas las subcarpetas
+
+    if (directories.length === 0) {
+        // Si no hay subcarpetas, procesa las imágenes en la raíz
+        const images = getImageFiles(tempDir);
+        if (images.length > 0) {
+            const outputPDFPath = path.join(outputDir, `${serie}_${chapter}.pdf`);
+            await imagesToPDF(images, outputPDFPath);
+            console.log(`PDF creado en ${outputPDFPath}`);
+        } else {
+            console.log(`No se encontraron imágenes en el ZIP: ${zipFilePath}`);
+        }
+    } else {
+        // Procesa las imágenes dentro de cada subcarpeta
+        for (const directory of directories) {
+            const images = getImageFiles(directory); // Obtener imágenes dentro de cada carpeta
+
+            if (images.length === 0) {
+                console.log(`No se encontraron imágenes en la carpeta: ${directory}`);
+                continue;
+            }
+
+            const folderName = path.basename(directory);
+            const outputPDFPath = path.join(outputDir, `${serie}_${chapter}_${folderName}.pdf`);
+
+            await imagesToPDF(images, outputPDFPath); // Crear el PDF con las imágenes
+
+            console.log(`PDF creado para la carpeta ${folderName} en ${outputPDFPath}`);
+        }
+    }
+
+    // Eliminar los archivos temporales
+    fs.rmSync(tempDir, { recursive: true, force: true });
+}
+
+// Función para procesar todos los ZIPs en la carpeta "temp" y generar los PDFs en "output_pdfs"
+async function processZipsInTempFolder(serie, chapter) {
+    const zipFolderPath = path.join(__dirname, '../temp'); // Carpeta "temp" donde se descargan los ZIPs
+    const outputDirectory = path.join(zipFolderPath, 'output_pdfs'); // Carpeta de salida para los PDFs
+
+    // Crear la carpeta de salida si no existe
+    if (!fs.existsSync(outputDirectory)) {
+        fs.mkdirSync(outputDirectory);
+    }
+
+    const zipFiles = fs.readdirSync(zipFolderPath).filter(file => path.extname(file) === '.zip');
+    
+    if (zipFiles.length === 0) {
+        console.log(`No se encontraron archivos ZIP en la carpeta "temp".`);
+        return;
+    }
+
+    for (const zipFile of zipFiles) {
+        const zipFilePath = path.join(zipFolderPath, zipFile);
+        await processSingleZip(zipFilePath, outputDirectory, serie, chapter);
+
+        // Después de procesar, eliminar el ZIP
+        fs.unlinkSync(zipFilePath);
+    }
+
+    console.log('Todos los ZIPs han sido procesados.');
+}
+
+// Obtener los argumentos de la línea de comandos (serie y chapter)
+const zipFilePath = process.argv[2]; // Ruta del archivo ZIP
+const serie = process.argv[3];       // Nombre de la serie
+const chapter = process.argv[4];     // Número del capítulo
+
+processZipsInTempFolder(serie, chapter)
+    .catch(err => console.error('Error:', err));

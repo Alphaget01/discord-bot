@@ -9,12 +9,14 @@ class RegistroDonadores(commands.Cog):
         self.bot = bot
         self.db = firestore.Client()
 
-    @app_commands.command(name="registrodonadores", description="Registra una serie en la base de datos con los IDs de las carpetas Dragon y Fenix")
+    @app_commands.command(name="registrodonadores", description="Registrar donadores en la base de datos")
+    @app_commands.describe(serie="Nombre de la serie", id_dragon="ID de la carpeta Dragon", id_fenix="ID de la carpeta Fenix")
     @app_commands.checks.has_role(int(os.getenv("ROL_AUTORIZADO")))
     async def registro_donadores(self, interaction: discord.Interaction, serie: str, id_dragon: str, id_fenix: str):
         donadores_ref = self.db.collection(os.getenv("FIRESTORE_COLLECTION"))
 
         try:
+            # Agregar la serie a la base de datos Firestore
             donadores_ref.add({
                 "serie": serie,
                 "id_dragon": id_dragon,
