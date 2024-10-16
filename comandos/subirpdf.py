@@ -30,11 +30,23 @@ class SubirPDF(commands.Cog):
         try:
             series_ref = self.db.collection(os.getenv("FIRESTORE_COLLECTION"))
             series_docs = series_ref.stream()
+            
+            # Recopilar todas las series
             series = [doc.to_dict().get('serie') for doc in series_docs if doc.to_dict().get('serie')]
-            return [app_commands.Choice(name=serie, value=serie) for serie in series if current.lower() in serie.lower()]
+            
+            # Filtrar las series basadas en el texto ingresado por el usuario (current)
+            series_filtradas = [serie for serie in series if current.lower() in serie.lower()]
+            
+            # Limitar el número de resultados a 25 (el máximo permitido por Discord)
+            series_limitadas = series_filtradas[:25]
+            
+            # Retornar las opciones para el autocompletado
+            return [app_commands.Choice(name=serie, value=serie) for serie in series_limitadas]
+        
         except Exception as e:
             logging.error(f"Error al obtener series para autocompletado: {str(e)}")
             return []
+
 
     async def ejecutar_script_node(self, zip_path, serie, chapter):
         proceso = await asyncio.create_subprocess_exec(
